@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -23,6 +25,7 @@ func main() {
 	router.HandleFunc("/posts/", server.getAllHandler).Methods("GET")
 	router.HandleFunc("/post/{id}/", server.getPostHandler).Methods("GET")
 	router.HandleFunc("/post/{id}", server.delPostHandler).Methods("DELETE")
+	router.HandleFunc("/post/{id}", server.updatePostHandler).Methods("PUT")
 
 	// start server
 	srv := &http.Server{Addr: "0.0.0.0:8080", Handler: router}
@@ -34,5 +37,17 @@ func main() {
 			}
 		}
 	}()
+	<-quit
+
+	log.Println("service shutting down ...")
+
+	// gracefully stop server
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal(err)
+	}
+	log.Println("server stopped")
 
 }

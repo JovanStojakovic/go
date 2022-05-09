@@ -66,4 +66,44 @@ func (ts *Service) delPostHandler(w http.ResponseWriter, req *http.Request) {
 		err := errors.New("key not found")
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
+
+}
+
+func (ts *Service) updatePostHandler(w http.ResponseWriter, req *http.Request) {
+
+	contentType := req.Header.Get("Content-Type")
+	mediatype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if mediatype != "application/json" {
+		err := errors.New("Expect application/json Content-Type")
+		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+		return
+	}
+
+	rt, err := decodeBody(req.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id := mux.Vars(req)["id"]
+
+	zadat, err3 := ts.data[id]
+	if !err3 {
+		err3 := errors.New("Kljuc nije pronadjen")
+		http.Error(w, err3.Error(), http.StatusNotFound)
+		return
+	}
+
+	for _, config := range rt {
+		zadat = append(zadat, config)
+	}
+
+	ts.data[id] = zadat
+	renderJSON(w, zadat)
+
 }
