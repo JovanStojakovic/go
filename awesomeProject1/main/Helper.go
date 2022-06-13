@@ -84,9 +84,9 @@ func constructKeyVersionConfigs(id string, verzija string) string {
 ///
 
 ///Grupe
-func generateKeyGroup(verzija string, labele string) (string, string) { /////Proveri ovde da li ide mapa stringova ili samo string
+func generateKeyGroup(verzija string, labele string) (string, string) {
 	id := uuid.New().String()
-	return fmt.Sprintf(groupsLabel, id, verzija, labele), id
+	return fmt.Sprintf(groupsLabel, id, verzija, labele+uuid.New().String()), id
 }
 
 func constructKeyGroupId(id string) string {

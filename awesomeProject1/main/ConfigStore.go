@@ -186,7 +186,7 @@ func (ps *ConfigurationStore) AddNewGroupVersion(group *Group) (*Group, error) {
 			labela += v + ";"
 		}
 		labela = labela[:len(labela)-1]
-		sid := constructKeyGroupLabels(group.Id, group.Version, labela)
+		sid := constructKeyGroupLabels(group.Id, group.Version, labela) + uuid.New().String()
 
 		data, err := json.Marshal(v)
 		if err != nil {
@@ -300,7 +300,7 @@ func (ps *ConfigurationStore) PostGroup(group *Group) (*Group, error) {
 			labela += v + ";"
 		}
 		labela = labela[:len(labela)-1]
-		sid := constructKeyGroupLabels(idGrupe, group.Version, labela)
+		sid := constructKeyGroupLabels(idGrupe, group.Version, labela) + uuid.New().String()
 		group.Id = idGrupe
 
 		data, err := json.Marshal(v)
