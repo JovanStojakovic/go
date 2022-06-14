@@ -134,14 +134,19 @@ func (ps *ConfigurationStore) PostConfig(configuration *Config) (*Config, error)
 ///Obrisi konfiguraciju
 func (ps *ConfigurationStore) DeleteConfig(id string, verzija string) (map[string]string, error) {
 	kv := ps.cli.KV()
-	_, err := kv.Delete(constructKeyVersionConfigs(id, verzija), nil)
-	if err != nil {
-		fmt.Println("Konfiguracija nije obrisana!")
-		return nil, err
+	pair, _, greska := kv.Get(constructKeyVersionConfigs(id, verzija), nil)
+	if greska != nil || pair == nil {
+		return nil, errors.New("No configuration like that!Cannot delete!")
+	} else {
+		data, err := kv.Delete(constructKeyVersionConfigs(id, verzija), nil)
+		if err != nil || data == nil {
+			fmt.Println("Konfiguracija nije obrisana!")
+			return nil, err
 
+		}
+
+		return map[string]string{"Obrisana konfiguracija sa id: ": id}, nil
 	}
-
-	return map[string]string{"Obrisana konfiguracija sa id: ": id}, nil
 }
 
 ///Konfiguracije
@@ -274,13 +279,17 @@ func (ps *ConfigurationStore) GetGroupByLabel(id string, version string, label s
 //Brisanje grupe u bazi
 func (ps *ConfigurationStore) DeleteGroup(id string, verzija string) (map[string]string, error) {
 	kv := ps.cli.KV()
-	_, err := kv.DeleteTree(constructKeyGroupVersion(id, verzija), nil)
-	if err != nil {
-		fmt.Println("Grupa nije obrisana!")
-		return nil, err
-	}
+	data, _, err := kv.List(constructKeyGroupVersion(id, verzija), nil)
+	if err != nil || data == nil {
+		return nil, errors.New("No group like that!Cannot delete!")
+	} else {
+		_, greska := kv.DeleteTree(constructKeyGroupVersion(id, verzija), nil)
+		if greska != nil {
+			return nil, greska
+		}
 
-	return map[string]string{"Deleted": id}, nil
+		return map[string]string{"Deleted": id}, nil
+	}
 }
 
 //Pravljenje grupe u bazi
