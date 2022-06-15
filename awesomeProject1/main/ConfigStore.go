@@ -279,11 +279,11 @@ func (ps *ConfigurationStore) GetGroupByLabel(id string, version string, label s
 //Brisanje grupe u bazi
 func (ps *ConfigurationStore) DeleteGroup(id string, verzija string) (map[string]string, error) {
 	kv := ps.cli.KV()
-	data, _, err := kv.List(constructKeyGroupVersion(id, verzija), nil)
+	data, _, err := kv.List(constructKeyGroupVersion(id, verzija), nil) ///Proverimo sa list da li postoji u bazi
 	if err != nil || data == nil {
-		return nil, errors.New("No group like that!Cannot delete!")
+		return nil, errors.New("No group like that!Cannot delete!") ///Ako ne dobijemo odgovor da postoji ovo se prikaze
 	} else {
-		_, greska := kv.DeleteTree(constructKeyGroupVersion(id, verzija), nil)
+		_, greska := kv.DeleteTree(constructKeyGroupVersion(id, verzija), nil) //Ako postoji onda se izvrsi
 		if greska != nil {
 			return nil, greska
 		}
