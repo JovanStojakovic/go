@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/hashicorp/consul/api"
 	"os"
-	"sort"
+	"reflect"
+	"strings"
 )
 
 type ConfigurationStore struct {
@@ -30,32 +30,9 @@ func New() (*ConfigurationStore, error) {
 	}, nil
 }
 
-///Nadji sve konfiguracije --- ok
-func (ps *ConfigurationStore) GetAllConfigurations() ([]*Config, error) {
-	kv := ps.cli.KV()
-	data, _, err := kv.List(allConfigs, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	configurations := []*Config{}
-	for _, pair := range data {
-		post := &Config{}
-		err = json.Unmarshal(pair.Value, post)
-		if err != nil {
-			return nil, err
-		}
-		configurations = append(configurations, post)
-	}
-
-	return configurations, nil
-}
-
-///Nadji konfiguraciju preko id-a i verzije ---ok
+///find by id and vers
 func (ps *ConfigurationStore) GetConfigByIdVersion(id string, verzija string) (*Config, error) {
 	kv := ps.cli.KV()
-	//sid := constructKeyVersionConfigs(id, verzija)
-	//fmt.Println("OVO JE ONO STO TRAZIMO: " + sid)
 	pair, _, err := kv.Get(constructKeyVersionConfigs(id, verzija), nil)
 	if err != nil {
 		return nil, err
@@ -68,7 +45,7 @@ func (ps *ConfigurationStore) GetConfigByIdVersion(id string, verzija string) (*
 	return config, nil
 }
 
-///Nadji sve verzije jedne konfiguracije preko id-a ---ok
+///find by id config
 func (ps *ConfigurationStore) GetConfigurationById(id string) ([]*Config, error) {
 	kv := ps.cli.KV()
 	sid := constructKeyIDConfigurations(id)
@@ -92,7 +69,7 @@ func (ps *ConfigurationStore) GetConfigurationById(id string) ([]*Config, error)
 
 }
 
-///Pravi novu verziju konfiguracije ---ok
+///Add new config version
 func (ps *ConfigurationStore) AddNewConfigVersion(config *Config) (*Config, error) {
 	kv := ps.cli.KV()
 	data, err := json.Marshal(config)
@@ -110,7 +87,7 @@ func (ps *ConfigurationStore) AddNewConfigVersion(config *Config) (*Config, erro
 	return config, nil
 }
 
-///Dodaj konfiguraciju ---ok
+///Add config
 func (ps *ConfigurationStore) PostConfig(configuration *Config) (*Config, error) {
 	kv := ps.cli.KV()
 
@@ -131,29 +108,41 @@ func (ps *ConfigurationStore) PostConfig(configuration *Config) (*Config, error)
 	return configuration, nil
 }
 
-///Obrisi konfiguraciju
-func (ps *ConfigurationStore) DeleteConfig(id string, verzija string) (map[string]string, error) {
+///find all config
+func (ps *ConfigurationStore) GetAllConfigurations() ([]*Config, error) {
 	kv := ps.cli.KV()
-	pair, _, greska := kv.Get(constructKeyVersionConfigs(id, verzija), nil)
-	if greska != nil || pair == nil {
-		return nil, errors.New("No configuration like that!Cannot delete!")
-	} else {
-		data, err := kv.Delete(constructKeyVersionConfigs(id, verzija), nil)
-		if err != nil || data == nil {
-			fmt.Println("Konfiguracija nije obrisana!")
-			return nil, err
-
-		}
-
-		return map[string]string{"Obrisana konfiguracija sa id: ": id}, nil
+	data, _, err := kv.List(allConfigs, nil)
+	if err != nil {
+		return nil, err
 	}
+
+	configurations := []*Config{}
+	for _, pair := range data {
+		post := &Config{}
+		err = json.Unmarshal(pair.Value, post)
+		if err != nil {
+			return nil, err
+		}
+		configurations = append(configurations, post)
+	}
+
+	return configurations, nil
 }
 
-///Konfiguracije
-///
-///
-///
-///Grupe
+//Update
+func (ps *ConfigurationStore) UpdateGroup(group *Group) (*Group, error) {
+	kv := ps.cli.KV()
+	data, err := json.Marshal(group)
+
+	sid := constructKeyGroupVersion(group.Id, group.Version)
+	p := &api.KVPair{Key: sid, Value: data}
+	_, err = kv.Put(p, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return group, nil
+}
 
 ///Nadji sve grupe
 func (ps *ConfigurationStore) GetAllGroups() ([]*Group, error) {
@@ -176,159 +165,62 @@ func (ps *ConfigurationStore) GetAllGroups() ([]*Group, error) {
 	return groups, nil
 }
 
-//Dodavanje nove verzije grupe
-func (ps *ConfigurationStore) AddNewGroupVersion(group *Group) (*Group, error) {
-	kv := ps.cli.KV()
-
-	for _, v := range group.Configs {
-		labela := ""
-		listaStringova := []string{}
-		for k, val := range v {
-			listaStringova = append(listaStringova, k+":"+val)
-		}
-		sort.Strings(listaStringova)
-		for _, v := range listaStringova {
-			labela += v + ";"
-		}
-		labela = labela[:len(labela)-1]
-		sid := constructKeyGroupLabels(group.Id, group.Version, labela) + uuid.New().String()
-
-		data, err := json.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-
-		p := &api.KVPair{Key: sid, Value: data}
-		_, err = kv.Put(p, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return group, nil
-}
-
-///Nadji grupu preko id-a i verzije
+///Find by id and version
 func (ps *ConfigurationStore) GetGroupByIdVersion(id string, version string) (*Group, error) {
 	kv := ps.cli.KV()
-
-	data, _, err := kv.List(constructKeyGroupVersion(id, version), nil)
-	if err != nil || data == nil {
-		return nil, errors.New("Ne postoji ta grupa!")
+	sid := constructKeyGroupVersion(id, version)
+	pair, _, err := kv.Get(sid, nil)
+	if pair == nil {
+		return nil, errors.New("Group not found!")
 	}
 
-	configs := []map[string]string{}
-	for _, pair := range data {
-		config := &map[string]string{}
-		err = json.Unmarshal(pair.Value, config)
-		if err != nil {
-			return nil, err
-		}
-		configs = append(configs, *config)
-	}
-
-	group := &Group{configs, id, version}
-
-	return group, nil
-}
-
-///Nadji grupu po id-u
-func (ps *ConfigurationStore) GetGroupById(id string) ([]*Group, error) {
-	kv := ps.cli.KV()
-	sid := constructKeyGroupId(id)
-	data, _, err := kv.List(sid, nil)
+	konfGrupa := &Group{}
+	err = json.Unmarshal(pair.Value, konfGrupa)
 	if err != nil {
 		return nil, err
-
 	}
-	groupList := []*Group{}
-
-	for _, pair := range data {
-		group := &Group{}
-		err = json.Unmarshal(pair.Value, group)
-		if err != nil {
-			return nil, err
-		}
-		groupList = append(groupList, group)
-
-	}
-	return groupList, nil
-
+	return konfGrupa, nil
 }
 
-func (ps *ConfigurationStore) GetGroupByLabel(id string, version string, label string) ([]map[string]string, error) {
+//get by label
+func (ps *ConfigurationStore) GetGroupByLabel(id string, version string, label string) ([]*ConfigurationInGroup, error) {
 	kv := ps.cli.KV()
-	data, _, err := kv.List(constructKeyGroupLabels(id, version, label), nil)
+	listConfigs := []*ConfigurationInGroup{}
+
+	sid := constructKeyGroupVersion(id, version)
+	pair, _, err := kv.Get(sid, nil)
+	if pair == nil {
+		return nil, err
+	}
+
+	labellist := strings.Split(label, ";")
+	labeldb := make(map[string]string)
+	for _, labela := range labellist {
+		deolabele := strings.Split(labela, ":")
+		if deolabele != nil {
+			labeldb[deolabele[0]] = deolabele[1]
+		}
+	}
+
+	confGroup := &Group{}
+	err = json.Unmarshal(pair.Value, confGroup)
 	if err != nil {
 		return nil, err
 	}
 
-	configs := []map[string]string{}
-	for _, pair := range data {
-		config := &map[string]string{}
-		err = json.Unmarshal(pair.Value, config)
-		if err != nil {
-			return nil, err
-		}
-		configs = append(configs, *config)
-	}
-
-	return configs, nil
-}
-
-//Brisanje grupe u bazi
-func (ps *ConfigurationStore) DeleteGroup(id string, verzija string) (map[string]string, error) {
-	kv := ps.cli.KV()
-	data, _, err := kv.List(constructKeyGroupVersion(id, verzija), nil) ///Proverimo sa list da li postoji u bazi
-	if err != nil || data == nil {
-		return nil, errors.New("No group like that!Cannot delete!") ///Ako ne dobijemo odgovor da postoji ovo se prikaze
-	} else {
-		_, greska := kv.DeleteTree(constructKeyGroupVersion(id, verzija), nil) //Ako postoji onda se izvrsi
-		if greska != nil {
-			return nil, greska
-		}
-
-		return map[string]string{"Deleted": id}, nil
-	}
-}
-
-//Pravljenje grupe u bazi
-func (ps *ConfigurationStore) PostGroup(group *Group) (*Group, error) {
-	kv := ps.cli.KV()
-
-	idGrupe := uuid.New().String()
-
-	for _, v := range group.Configs {
-		labela := ""
-		listaStringova := []string{}
-		for k, val := range v {
-			listaStringova = append(listaStringova, k+":"+val)
-		}
-		sort.Strings(listaStringova)
-		for _, v := range listaStringova {
-			labela += v + ";"
-		}
-		labela = labela[:len(labela)-1]
-		sid := constructKeyGroupLabels(idGrupe, group.Version, labela) + uuid.New().String()
-		group.Id = idGrupe
-
-		data, err := json.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-
-		p := &api.KVPair{Key: sid, Value: data}
-		_, err = kv.Put(p, nil)
-		if err != nil {
-			return nil, err
+	for _, config := range confGroup.Configs {
+		if len(config.Entries) == len(labeldb) {
+			if reflect.DeepEqual(config.Entries, labeldb) {
+				listConfigs = append(listConfigs, config)
+			}
 		}
 	}
 
-	return group, nil
+	return listConfigs, nil
 }
 
-//Izmena postojece grupe
-func (ps *ConfigurationStore) UpdateGroup(group *Group) (*Group, error) {
+//add new version
+func (ps *ConfigurationStore) AddNewGroupVersion(group *Group) (*Group, error) {
 	kv := ps.cli.KV()
 	data, err := json.Marshal(group)
 
@@ -340,4 +232,88 @@ func (ps *ConfigurationStore) UpdateGroup(group *Group) (*Group, error) {
 		return nil, err
 	}
 	return group, nil
+}
+
+//post group
+func (ps *ConfigurationStore) PostGroup(group *Group) (*Group, error) {
+	kv := ps.cli.KV()
+
+	sid, rid := generateGroupKey(group.Version)
+	group.Id = rid
+
+	data, err := json.Marshal(group)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs, _, err := kv.Get(sid, nil)
+	if pairs != nil {
+		return nil, errors.New("There is already configuaration with id like that! ")
+	}
+
+	p := &api.KVPair{Key: sid, Value: data}
+	_, err = kv.Put(p, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return group, nil
+}
+
+///Find by id
+func (ps *ConfigurationStore) GetGroupById(id string) ([]*Group, error) {
+	kv := ps.cli.KV()
+	sid := constructKeyGroupId(id)
+	data, _, err := kv.List(sid, nil)
+	if err != nil {
+		return nil, err
+
+	}
+	GroupList := []*Group{}
+
+	for _, pair := range data {
+		grupa := &Group{}
+		err = json.Unmarshal(pair.Value, grupa)
+		if err != nil {
+			return nil, err
+		}
+		GroupList = append(GroupList, grupa)
+
+	}
+	return GroupList, nil
+
+}
+
+//delete group
+func (ps *ConfigurationStore) DeleteGroup(id string, verzija string) (map[string]string, error) {
+	kv := ps.cli.KV()
+	data, _, err := kv.List(constructKeyGroupVersion(id, verzija), nil)
+	if err != nil || data == nil {
+		return nil, errors.New("Cannot find that group!")
+	} else {
+		_, greska := kv.Delete(constructKeyGroupVersion(id, verzija), nil)
+		if greska != nil {
+			return nil, greska
+		}
+
+		return map[string]string{"Deleted:": id}, nil
+	}
+}
+
+///delete config
+func (ps *ConfigurationStore) DeleteConfig(id string, verzija string) (map[string]string, error) {
+	kv := ps.cli.KV()
+	pair, _, greska := kv.Get(constructKeyVersionConfigs(id, verzija), nil)
+	if greska != nil || pair == nil {
+		return nil, errors.New("No configuration like that!Cannot delete!")
+	} else {
+		data, err := kv.Delete(constructKeyVersionConfigs(id, verzija), nil)
+		if err != nil || data == nil {
+			fmt.Println("Config not deleted!")
+			return nil, err
+
+		}
+
+		return map[string]string{"Deleted: ": id}, nil
+	}
 }

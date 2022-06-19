@@ -26,55 +26,33 @@ func main() {
 	server := Service{
 		store: store,
 	}
-	//Dodaje novu konfiguraciju
-	router.HandleFunc("/config", server.createConfigurationHandler).Methods("POST")
-	//Dodaje novu grupu
-	router.HandleFunc("/group", server.createGroupHandler).Methods("POST")
-	//Dodaje novu verziju postojece konfiguracije
-	router.HandleFunc("/config/{id}", server.addConfigVersionHandler).Methods("POST")
-	//Dodaje novu verziju postojece grupe
-	router.HandleFunc("/group/{id}/{version}", server.addNewGroupVersionHandler).Methods("POST")
-	////
-	////Post
 
-	////
-	///
-	////GET
-
-	//Nadji sve konfiguracije
-	router.HandleFunc("/config", server.getAllConfigurationsHandler).Methods("GET")
-
-	//Nadji konfiguraciju po id-u
-	router.HandleFunc("/config/{id}", server.getConfigByIDHandler).Methods("GET")
-
-	//Nadji konfiguraciju po id-u i verziji
-	router.HandleFunc("/config/{id}/{version}", server.getConfigByIDVersionHandler).Methods("GET")
-
-	//Nadji sve grupe
-	router.HandleFunc("/group", server.getAllGroupHandler).Methods("GET")
-
-	//Nadji grupu po id-u i verziji
-	router.HandleFunc("/group/{id}/{version}", server.getGroupByIdVersionHandler).Methods("GET")
-
-	//Nadji grupu po id-u
-	router.HandleFunc("/group/{id}", server.getGroupByIdHandler).Methods("GET")
-
-	///Nadji konfiguraciju unutar grupe preko labela - nedovrseno
-	router.HandleFunc("/group/{id}/{version}/{label}", server.getGroupLabelHandler).Methods("GET") /// Ovde je problem
-
-	///
-	///
-	///
-
-	///
-	///Delete
-	//Obrisi grupu
 	router.HandleFunc("/group/{id}/{version}", server.delGroupHandler).Methods("DELETE")
 
-	//Obrisi konfiguraciju
 	router.HandleFunc("/config/{id}/{version}", server.delConfigurationHandler).Methods("DELETE")
-	//
-	//PUT
+
+	router.HandleFunc("/config", server.getAllConfigurationsHandler).Methods("GET")
+
+	router.HandleFunc("/config/{id}", server.getConfigByIDHandler).Methods("GET")
+
+	router.HandleFunc("/config/{id}/{version}", server.getConfigByIDVersionHandler).Methods("GET")
+
+	router.HandleFunc("/group", server.getAllGroupHandler).Methods("GET")
+
+	router.HandleFunc("/group/{id}/{version}", server.getGroupByIdVersionHandler).Methods("GET")
+
+	router.HandleFunc("/group/{id}", server.getGroupByIdHandler).Methods("GET")
+
+	router.HandleFunc("/group/{id}/{version}/{label}", server.getGroupLabelHandler).Methods("GET")
+
+	router.HandleFunc("/config", server.createConfigurationHandler).Methods("POST")
+
+	router.HandleFunc("/group", server.createGroupHandler).Methods("POST")
+
+	router.HandleFunc("/config/{id}", server.addConfigVersionHandler).Methods("POST")
+
+	router.HandleFunc("/group/{id}/{version}", server.addNewGroupVersionHandler).Methods("POST")
+
 	router.HandleFunc("/group/{id}/{version}", server.UpdateGroupWithNewHandler).Methods("PUT")
 
 	// start server

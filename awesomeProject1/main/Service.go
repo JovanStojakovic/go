@@ -68,13 +68,13 @@ func (ts *Service) getConfigByIDHandler(w http.ResponseWriter, req *http.Request
 func (ts *Service) getConfigByIDVersionHandler(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
 	verzija := mux.Vars(req)["version"]
-	task, ok := ts.store.GetConfigByIdVersion(id, verzija)
-	if ok != nil {
-		err := errors.New("key not found")
+	konf, err := ts.store.DeleteConfig(id, verzija)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+		renderJSON(w, err)
 	}
-	renderJSON(w, task)
+
+	renderJSON(w, konf)
 }
 
 //Brise konfiguraciju
@@ -135,7 +135,7 @@ func (ts *Service) getAllGroupHandler(w http.ResponseWriter, req *http.Request) 
 	renderJSON(w, allTasks)
 }
 
-///Pravi jednu grupu
+///Pravi jednu grupu-ok
 func (ts *Service) createGroupHandler(w http.ResponseWriter, req *http.Request) {
 	contentType := req.Header.Get("Content-Type")
 	mediatype, _, err := mime.ParseMediaType(contentType)
@@ -151,8 +151,9 @@ func (ts *Service) createGroupHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	rt, err := decodeGroupBody(req.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err != nil || rt.Version == "" || rt.Configs == nil {
+		nesto := errors.New("Json format not valid!")
+		http.Error(w, nesto.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -164,19 +165,19 @@ func (ts *Service) createGroupHandler(w http.ResponseWriter, req *http.Request) 
 	renderJSON(w, group)
 }
 
-///Brisanje grupe
+///Brisanje grupe - ok
 func (ts *Service) delGroupHandler(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
 	version := mux.Vars(req)["version"]
 	group, err := ts.store.DeleteGroup(id, version)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		renderJSON(w, err)
 	}
 	renderJSON(w, group)
 }
 
-//Nadji grupu preko id-a
+//Nadji grupu preko id-a - ok
 func (ts *Service) getGroupByIdHandler(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
 	group, err := ts.store.GetGroupById(id)
@@ -187,21 +188,21 @@ func (ts *Service) getGroupByIdHandler(w http.ResponseWriter, req *http.Request)
 	renderJSON(w, group)
 }
 
-//Nadji grupu preko id-a i verzije
+//Nadji grupu preko id-a i verzije-ok
 func (ts *Service) getGroupByIdVersionHandler(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
 	verzija := mux.Vars(req)["version"]
 	group, ok := ts.store.GetGroupByIdVersion(id, verzija)
 	if ok != nil {
-		err := errors.New("Nije pronadjeno")
-		http.Error(w, err.Error(), http.StatusNotFound)
+		nesto := errors.New("Not found!")
+		http.Error(w, nesto.Error(), http.StatusNotFound)
 		return
 	}
 
 	renderJSON(w, group)
 }
 
-///dodaje novu verziju
+///dodaje novu verziju -ok
 func (cs *Service) addNewGroupVersionHandler(w http.ResponseWriter, req *http.Request) {
 	contentType := req.Header.Get("Content-Type")
 	mediatype, _, err := mime.ParseMediaType(contentType)
@@ -224,11 +225,14 @@ func (cs *Service) addNewGroupVersionHandler(w http.ResponseWriter, req *http.Re
 	rt.Id = id
 	rt.Version = version
 	group, err := cs.store.AddNewGroupVersion(rt)
+	if err != nil {
+		http.Error(w, "There is already version like that!", http.StatusBadRequest)
+	}
 	renderJSON(w, group)
 
 }
 
-//Dodaje novu konfiguraciju u grupu
+//Dodaje novu konfiguraciju u grupu- ok
 func (ts *Service) UpdateGroupWithNewHandler(w http.ResponseWriter, req *http.Request) {
 	id := mux.Vars(req)["id"]
 	version := mux.Vars(req)["version"]
@@ -269,10 +273,8 @@ func (ts *Service) UpdateGroupWithNewHandler(w http.ResponseWriter, req *http.Re
 	renderJSON(w, nova)
 }
 
-///Proveri ovde
-////Nadji grupu preko labela
+////Nadji grupu preko labela -ok
 func (ts *Service) getGroupLabelHandler(w http.ResponseWriter, req *http.Request) {
-
 	id := mux.Vars(req)["id"]
 	version := mux.Vars(req)["version"]
 	label := mux.Vars(req)["label"]
@@ -286,7 +288,7 @@ func (ts *Service) getGroupLabelHandler(w http.ResponseWriter, req *http.Request
 	returnConfigs, error := ts.store.GetGroupByLabel(id, version, sortedLabel)
 
 	if error != nil {
-		renderJSON(w, "Doslo je do greske!Nije pronadjena")
+		renderJSON(w, "Error!Not Found!")
 	}
 	renderJSON(w, returnConfigs)
 }

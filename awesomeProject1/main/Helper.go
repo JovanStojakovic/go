@@ -84,9 +84,9 @@ func constructKeyVersionConfigs(id string, verzija string) string {
 ///
 
 ///Grupe
-func generateKeyGroup(verzija string, labele string) (string, string) {
+func generateGroupKey(ver string) (string, string) {
 	id := uuid.New().String()
-	return fmt.Sprintf(groupsLabel, id, verzija, labele+uuid.New().String()), id
+	return fmt.Sprintf(groupsVersion, id, ver), id
 }
 
 func constructKeyGroupId(id string) string {
